@@ -4,3 +4,5 @@ requests
 uvicorn
 pandas
 openpyxl
+streamlit
+groq
