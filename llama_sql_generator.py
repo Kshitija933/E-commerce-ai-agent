@@ -32,8 +32,8 @@ def clean_sql(sql_query: str) -> str:
         return sql_query.split("```")[1].split("```")[0].strip()
     return sql_query.strip()
 
-# ✅ Generates SQL from natural language using LLaMA 3 and SQLite-safe rules
-def generate_sql_with_llama(question: str, db_path="ecommerce.db", api_provider="ollama", api_key=None) -> str:
+# ✅ Generates SQL from natural language using Groq and SQLite-safe rules
+def generate_sql_with_llama(question: str, db_path="ecommerce.db", api_key=None) -> str:
     # 1. Load current schema
     table_schema = get_all_table_columns(db_path)
 
@@ -68,29 +68,21 @@ SQL:
 """
 
     try:
-        if api_provider == "groq" and api_key:
-            from groq import Groq
-            client = Groq(api_key=api_key)
-            completion = client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model="llama3-8b-8192",
-                temperature=0.1,
-            )
-            result = completion.choices[0].message.content
-            return clean_sql(result)
-        else:
-            # 3. Call LLaMA 3 locally via Ollama
-            response = requests.post(
-                "http://localhost:11434/api/generate",
-                json={
-                    "model": "llama3",
-                    "prompt": prompt,
-                    "stream": False
-                }
-            )
-            response.raise_for_status()
-            result = response.json()
-            return clean_sql(result.get("response", ""))
+        import os
+        api_key_to_use = api_key or os.environ.get("GROQ_API_KEY")
+        if not api_key_to_use:
+             return "-- ❌ Error: GROQ_API_KEY is missing. Please provide it."
+
+        from groq import Groq
+        client = Groq(api_key=api_key_to_use)
+        
+        completion = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="llama3-8b-8192",
+            temperature=0.1,
+        )
+        result = completion.choices[0].message.content
+        return clean_sql(result)
 
     except Exception as e:
-        return f"-- ❌ Error generating SQL from LLaMA: {e}"
+        return f"-- ❌ Error generating SQL from Groq: {e}"

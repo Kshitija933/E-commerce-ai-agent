@@ -15,24 +15,34 @@ st.markdown("Ask natural language questions to interact dynamically with your E-
 if not os.path.exists("ecommerce.db"):
     with st.spinner("Initializing database from Excel source files..."):
         try:
-            subprocess.run(["python", "load_data_to_db.py"], check=True)
+            import load_data_to_db
             st.success("Database initialized successfully!")
         except Exception as e:
             st.error(f"Failed to initialize database: {e}")
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # Sidebar config
 st.sidebar.header("⚙️ Agent Configuration")
-llm_provider = st.sidebar.radio("LLM Provider", ["Local Ollama (Llama 3)", "Groq Cloud (Llama 3)"])
+st.sidebar.success("Powered by Groq Cloud (Llama 3)")
 
 api_key = ""
-api_provider = "ollama"
-if llm_provider == "Groq Cloud (Llama 3)":
-    api_provider = "groq"
+try:
+    # Try getting from Streamlit secrets first (for cloud)
+    api_key = st.secrets.get("GROQ_API_KEY", "")
+except FileNotFoundError:
+    pass
+
+# Try getting from environment variable (local .env)
+if not api_key:
+    api_key = os.environ.get("GROQ_API_KEY", "")
+
+# Fallback: Ask user
+if not api_key:
     api_key = st.sidebar.text_input("Enter Groq API Key:", type="password")
     if not api_key:
-        st.sidebar.warning("API key is required for Groq Cloud. Get one for free at [console.groq.com](https://console.groq.com)")
-else:
-    st.sidebar.info("Ensure Ollama is running (`ollama run llama3`) locally.")
+        st.sidebar.warning("API key is required. Get one for free at [console.groq.com](https://console.groq.com)")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Sample Questions**")
@@ -62,14 +72,14 @@ if prompt := st.chat_input("E.g., What is the average return on ad spend?"):
     
     # Process
     with st.chat_message("assistant"):
-        if api_provider == "groq" and not api_key:
+        if not api_key:
             err = "Please enter a Groq API key in the sidebar configuration to use cloud."
             st.error(err)
             st.session_state.messages.append({"role": "assistant", "content": err})
             st.stop()
             
         with st.spinner("Generating SQL query using AI..."):
-            sql_query = generate_sql_with_llama(prompt, api_provider=api_provider, api_key=api_key)
+            sql_query = generate_sql_with_llama(prompt, api_key=api_key)
             
         if sql_query.startswith("-- ❌"):
             st.error(sql_query)

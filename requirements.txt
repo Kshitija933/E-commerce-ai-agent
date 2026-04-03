@@ -6,3 +6,4 @@ pandas
 openpyxl
 streamlit
 groq
+python-dotenv

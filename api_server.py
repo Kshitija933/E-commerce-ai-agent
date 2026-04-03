@@ -56,25 +56,28 @@ def ask_question(request: QuestionRequest):
         except:
             pass
 
-# ✅ Streaming helper (token-by-token from Ollama)
+# ✅ Streaming helper (token-by-token from Groq)
 def stream_llama_response(prompt: str):
-    url = "http://localhost:11434/api/generate"
-    payload = {
-        "model": "llama3",
-        "prompt": prompt,
-        "stream": True
-    }
-    response = requests.post(url, json=payload, stream=True)
+    import os
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        yield "Error: GROQ_API_KEY is not set in environment."
+        return
+
+    from groq import Groq
+    client = Groq(api_key=api_key)
+    
+    stream = client.chat.completions.create(
+        messages=[{"role": "user", "content": prompt}],
+        model="llama3-8b-8192",
+        stream=True
+    )
 
     def event_stream():
-        for line in response.iter_lines():
-            if line:
-                try:
-                    json_data = json.loads(line.decode("utf-8"))
-                    token = json_data.get("response", "")
-                    yield token
-                except:
-                    continue
+        for chunk in stream:
+            content = chunk.choices[0].delta.content
+            if content:
+                yield content
 
     return event_stream()
 
