@@ -69,7 +69,7 @@ def stream_llama_response(prompt: str):
     
     stream = client.chat.completions.create(
         messages=[{"role": "user", "content": prompt}],
-        model="llama3-8b-8192",
+        model="llama-3.3-70b-versatile",
         stream=True
     )
 
